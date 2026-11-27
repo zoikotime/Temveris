@@ -1,0 +1,144 @@
+# TEMPLATE: set repo secrets and replace placeholders before enabling Actions.
+name: Deploy to GCP Cloud Run
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: YOUR_GCP_PROJECT_ID
+  REGION: asia-northeast1
+  MAIN_SERVICE: YOUR_SERVICE_NAME
+  MAIN_IMAGE: us-docker.pkg.dev/YOUR_GCP_PROJECT_ID/YOUR_ARTIFACT_REPO/YOUR_IMAGE_NAME
+
+jobs:
+  deploy-main:
+    name: Build & Deploy Main App
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auth with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker us-docker.pkg.dev --quiet
+
+      # The frontend is compiled inside Dockerfile stage 1, and Vite inlines
+      # VITE_* values at build time — so public frontend config must arrive as a
+      # --build-arg. A Cloud Run runtime variable cannot reach the bundle.
+      # Only the PUBLIC Turnstile site key is passed here; the secret stays a
+      # backend runtime variable below.
+      - name: Build Docker image
+        run: |
+          docker build \
+            --file Dockerfile \
+            --build-arg VITE_TURNSTILE_SITE_KEY="${{ secrets.TURNSTILE_SITE_KEY }}" \
+            --tag ${{ env.MAIN_IMAGE }}:${{ github.sha }} \
+            --tag ${{ env.MAIN_IMAGE }}:latest \
+            .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.MAIN_IMAGE }}:${{ github.sha }}
+          docker push ${{ env.MAIN_IMAGE }}:latest
+
+      # NOTE: `env_vars` below is a YAML block scalar — every line inside it is
+      # literal text parsed as KEY=VALUE by the action, so a `#` line there is
+      # NOT a comment and would be a malformed entry. Keep explanations here.
+      #
+      # SIGNUP_CHALLENGE_SECRET  Turnstile secret. Verified server-side only;
+      #                          never a VITE_* value, or it would be baked into
+      #                          the public bundle.
+      # SIGNUP_CHALLENGE_REQUIRED  Optional. Left unset, app.commercial.challenge
+      #                          falls back to "required if a secret is
+      #                          configured", so setting the secret alone
+      #                          enforces the challenge and fails closed.
+      # TRUSTED_PROXY_HOPS       Optional. Trailing X-Forwarded-For entries to
+      #                          skip when resolving the client IP for rate
+      #                          limiting. Unset == 0 == rightmost entry, which
+      #                          is correct for Cloud Run with no additional
+      #                          proxy in front. See backend/app/client_ip.py.
+      - name: Deploy to Cloud Run
+        id: deploy-main
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.MAIN_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.MAIN_IMAGE }}:${{ github.sha }}
+          flags: >-
+            --platform=managed
+            --allow-unauthenticated
+            --port=8080
+            --memory=2Gi
+            --cpu=4
+            --cpu-boost
+            --no-cpu-throttling
+            --min-instances=1
+            --max-instances=6
+            --concurrency=30
+            --timeout=300
+      # APP_ENV / STRIPE_MODE gate the billing subsystem: APP_ENV=production is what
+      # enables the billing sweeps (they are off everywhere else), and STRIPE_MODE is
+      # asserted against the secret key at boot so a half-finished cutover fails loudly.
+      # Flipping STRIPE_MODE to live is the deliberate, reviewable step for go-live.
+      #
+      # CORS_ALLOW_ORIGINS is load-bearing: main.py falls back to a localhost-only
+      # regex when it is unset ("fails safe rather than open"), which in production
+      # would mean the SPA could not call the API at all. "*" preserves the current
+      # reflect-any-origin behaviour; tightening it is a separate, deliberate change.
+      # It and EMAIL_LOGO_URL are required once backend/.env stops shipping in the
+      # image; every other variable in that file matches its code default exactly.
+          env_vars: |
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            SUPABASE_SCREENSHOTS_BUCKET=${{ secrets.SUPABASE_SCREENSHOTS_BUCKET }}
+            STORAGE_BACKEND=supabase
+            APP_ENV=production
+            STRIPE_MODE=test
+            CORS_ALLOW_ORIGINS=*
+            EMAIL_LOGO_URL=https://YOUR_APP_DOMAIN/email-assets/temveris_logo.png
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            FROM_EMAIL=${{ secrets.FROM_EMAIL }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            HR_EMAIL=${{ secrets.HR_EMAIL }}
+            FRONTEND_URL=${{ secrets.FRONTEND_URL }}
+            BACKEND_URL=${{ secrets.BACKEND_URL }}
+            GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+            GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+            SUPER_ADMIN_EMAILS=${{ secrets.SUPER_ADMIN_EMAILS }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            STRIPE_PRICE_VERIFIED_MONTHLY=${{ secrets.STRIPE_PRICE_VERIFIED_MONTHLY }}
+            STRIPE_PRICE_VERIFIED_ANNUAL=${{ secrets.STRIPE_PRICE_VERIFIED_ANNUAL }}
+            STRIPE_PRICE_GOVERNED_MONTHLY=${{ secrets.STRIPE_PRICE_GOVERNED_MONTHLY }}
+            STRIPE_PRICE_GOVERNED_ANNUAL=${{ secrets.STRIPE_PRICE_GOVERNED_ANNUAL }}
+            STRIPE_PRICE_SOVEREIGN_MONTHLY=${{ secrets.STRIPE_PRICE_SOVEREIGN_MONTHLY }}
+            STRIPE_PRICE_SOVEREIGN_ANNUAL=${{ secrets.STRIPE_PRICE_SOVEREIGN_ANNUAL }}
+            SIGNUP_CHALLENGE_SECRET=${{ secrets.SIGNUP_CHALLENGE_SECRET }}
+            SIGNUP_CHALLENGE_REQUIRED=${{ secrets.SIGNUP_CHALLENGE_REQUIRED }}
+            TRUSTED_PROXY_HOPS=${{ secrets.TRUSTED_PROXY_HOPS }}
+
+      - name: Show deployed URL
+        run: echo "Main app deployed to ${{ steps.deploy-main.outputs.url }}"

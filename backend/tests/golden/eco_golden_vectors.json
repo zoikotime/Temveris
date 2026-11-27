@@ -1,0 +1,506 @@
+{
+  "_spec": "ZT-SPEC-ECO-002",
+  "_spec_version": "2.0",
+  "_spec_section": "§42 Golden Test Vectors",
+  "_normative": true,
+  "_vector_count": 28,
+  "_transcribed_on": "2026-09-03",
+  "_readme": [
+    "DECLARATIVE ANTI-DRIFT ARTIFACT. No Early Clock-Out calculation engine exists in",
+    "this repository and none was implemented. These vectors are NOT executed.",
+    "",
+    "§42: 'These vectors are normative. They ship as executable fixtures and MUST pass",
+    "before release and on every subsequent build.' Defect D-21 records why they exist:",
+    "'A deterministic engine specified without golden vectors will be implemented as",
+    "several mutually incompatible variants.'",
+    "",
+    "They are committed BEFORE any engine so that expected outputs cannot later be bent",
+    "to match whatever an implementation happens to produce. That is the whole point.",
+    "",
+    "RULES FOR ANYONE EDITING THIS FILE:",
+    "  * 'scenario', 'inputs_verbatim' and 'expected_verbatim' are transcribed from the",
+    "    §42 table character-for-character. They are the authority. Do not reword, do not",
+    "    normalise punctuation, do not 'clarify'.",
+    "  * 'expected_fields' is a convenience structuring of values the specification states",
+    "    explicitly. Where the specification is prose, the field is omitted rather than",
+    "    interpreted. On any disagreement, 'expected_verbatim' wins.",
+    "  * 'harness' is execution metadata ONLY. It records why a vector cannot run yet.",
+    "    Changing a harness field never changes a normative expectation.",
+    "  * Weakening an expected output to make an implementation pass is defect D-21.",
+    "    Amending a vector requires the specification owner, not the implementer.",
+    "",
+    "BLOCKING DEPENDENCY CODES (from the three-phase read-only audit):",
+    "  P-1  sealed state interval ledger + ledger_version           (absent)",
+    "  P-2  deterministic classifier, BRK_M/BRK_R distinct states   (absent)",
+    "  P-3  clock-out provenance: genuine vs system-synthesized     (absent)",
+    "  P-4  minute-granular leave                                   (absent)",
+    "  P-5  historically resolvable policy versioning               (absent)",
+    "  C-2  fail-closed REQUIREMENT_UNRESOLVED state                (unreachable today)",
+    "  MODEL-NETTING  netting/banking model                         (absent platform-wide)",
+    "  MODEL-GRACE    grace_minutes on the requirement model        (absent)",
+    "  MODEL-HORIZON  retroactive-horizon setting                   (absent)",
+    "  MODEL-WORKWEEK workweek-start + shift-attribution settings   (absent)"
+  ],
+  "vectors": [
+    {
+      "id": "GV-01",
+      "scenario": "Three measurements diverge (§6.2)",
+      "inputs_verbatim": "Req 525; WRK 270+225; BRK_M 45 unpaid; leave 17:30–18:00; sched end 18:30",
+      "expected_verbatim": "variance −60; qualifying 495; gross 30; excluded 30; attributable 0; no event",
+      "expected_fields": {
+        "schedule_variance_minutes": -60,
+        "qualifying_minutes": 495,
+        "gross_shortfall_minutes": 30,
+        "exclusion_minutes": 30,
+        "attributable_minutes": 0,
+        "threshold_event_emitted": false
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "Requires sealed intervals and a 30-minute leave window (17:30–18:00). Both exist: the producer seals intervals, and Step 7's leave_interval capability represents intraday boundaries, which app/eval_day/exclusion.py already consumes. MODEL-VARIANCE closed under owner rulings D-1.1 and D-2.1: the scheduled end is resolved once at seal and frozen on the ledger with its source tier, and §18 step 14 computes the variance from that frozen evidence alone."
+      }
+    },
+    {
+      "id": "GV-02",
+      "scenario": "Meal/rest distinction (§13.3)",
+      "inputs_verbatim": "Req 525; BRK_R 15 + 20 with cap 30; BRK_M 45 unpaid",
+      "expected_verbatim": "qualifying 500; attributable 25; rest capped at 30 cumulative",
+      "expected_fields": {
+        "qualifying_minutes": 500,
+        "attributable_minutes": 25,
+        "rest_qualifying_cap_minutes": 30,
+        "rest_cap_is_cumulative": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§19.1: rest is capped cumulatively, not per interval — two 20-minute rest breaks against a 30-minute cap qualify 20 + 10, not 20 + 20."
+      }
+    },
+    {
+      "id": "GV-03",
+      "scenario": "Generic-break regression guard",
+      "inputs_verbatim": "Same ledger as GV-02 evaluated with a single break category",
+      "expected_verbatim": "MUST FAIL. Asserts that no code path collapses BRK_M and BRK_R (INV-4)",
+      "expected_fields": {
+        "must_fail": true,
+        "asserts_invariant": "INV-4"
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "Cannot even be EXPRESSED today: the platform has one generic break bucket (break_sessions.break_type is a worker-selected 'break'|'lunch' label, and all break types are subtracted equally), so there are not two states to collapse. This vector is the direct guard against the D-01 defect."
+      }
+    },
+    {
+      "id": "GV-04",
+      "scenario": "Threshold at exactly 30",
+      "inputs_verbatim": "Prior week 20; today gross 10, no exclusion",
+      "expected_verbatim": "weekly 30; crossed = true; one ECO_THRESHOLD_REACHED",
+      "expected_fields": {
+        "weekly_total_minutes": 30,
+        "crossed": true,
+        "events_emitted": ["ECO_THRESHOLD_REACHED"],
+        "event_count": 1
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§21.1: the comparison is W(w,k) >= T(t,k). Exactly 30 triggers; strictly-greater-than is a defect. The fold arithmetic is pure, but the day records it folds do not exist."
+      }
+    },
+    {
+      "id": "GV-05",
+      "scenario": "Threshold at 29",
+      "inputs_verbatim": "Prior week 20; today gross 9",
+      "expected_verbatim": "weekly 29; crossed = false; no event",
+      "expected_fields": {
+        "weekly_total_minutes": 29,
+        "crossed": false,
+        "events_emitted": [],
+        "event_count": 0
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": []
+      }
+    },
+    {
+      "id": "GV-06",
+      "scenario": "Deduplication",
+      "inputs_verbatim": "GV-04 then further shortfalls to 36 and 44",
+      "expected_verbatim": "Exactly one primary event; no further notifications",
+      "expected_fields": {
+        "primary_event_count": 1,
+        "further_notifications": 0
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§21.2: created by natural key (tenant_id, worker_id, workweek_key, tier='PRIMARY'), not by a 'has notified' boolean, so a replay cannot create a second."
+      }
+    },
+    {
+      "id": "GV-07",
+      "scenario": "De-crossing (§21.3)",
+      "inputs_verbatim": "GV-04 then a correction of −10",
+      "expected_verbatim": "weekly 20; ECO_THRESHOLD_WITHDRAWN emitted; original retained; both recipients notified",
+      "expected_fields": {
+        "weekly_total_minutes": 20,
+        "events_emitted": ["ECO_THRESHOLD_WITHDRAWN"],
+        "original_event_retained": true,
+        "recipients_notified_of_withdrawal": "all original recipients"
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "R-21.3.1: the original event is never deleted, never back-dated, never hidden. ALERT-DELIVERY is satisfied: the notification platform (D-A), the persist-first processing step (D-C) and the operational command (D-F) deliver per recipient and record the returned DispatchResult. Both original recipients are reached from the FROZEN snapshot, a repeated pass retransmits nothing under D-4, and the withdrawal reaches the same recipients after current authority is removed."
+      }
+    },
+    {
+      "id": "GV-08",
+      "scenario": "Re-crossing (§21.4)",
+      "inputs_verbatim": "GV-07 then a further 12 min shortfall",
+      "expected_verbatim": "weekly 32; new primary event with sequence = 2 referencing the withdrawal",
+      "expected_fields": {
+        "weekly_total_minutes": 32,
+        "sequence": 2,
+        "references_prior_withdrawal": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": []
+      }
+    },
+    {
+      "id": "GV-09",
+      "scenario": "Cross-midnight, cross-week (§12.3)",
+      "inputs_verbatim": "Shift Sun 22:00 → Mon 06:00; attribution START_DATE",
+      "expected_verbatim": "One work_date = Sunday; minutes counted once; accrues to the week containing Sunday",
+      "expected_fields": {
+        "work_date_weekday": "Sunday",
+        "shift_attribution_rule": "START_DATE",
+        "counted_in_workweeks": 1
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "R-12.3.5: a shift may never be attributed to two workweeks. No shift-attribution setting exists."
+      }
+    },
+    {
+      "id": "GV-10",
+      "scenario": "DST spring forward",
+      "inputs_verbatim": "Shift 01:00–10:00 local on a transition day, Europe/London",
+      "expected_verbatim": "Duration 8h, not 9h; required minutes unchanged at 525",
+      "expected_fields": {
+        "duration_hours": 8,
+        "required_minutes": 525
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§16.3: required minutes are a duration, not a wall-clock span. app/_tz already resolves through the IANA zone; the interval set to measure does not exist."
+      }
+    },
+    {
+      "id": "GV-11",
+      "scenario": "DST fall back, week length",
+      "inputs_verbatim": "Workweek containing an autumn transition",
+      "expected_verbatim": "Week boundary correct; week is 169 hours; no day double-counted",
+      "expected_fields": {
+        "week_length_hours": 169,
+        "days_double_counted": 0
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§24.8: any implementation that assumes 168 hours will drift twice a year. The workweek-start setting now exists (schedule.week_start_day, W4)."
+      }
+    },
+    {
+      "id": "GV-12",
+      "scenario": "Rounding locus (§16.2)",
+      "inputs_verbatim": "Five days each 36s short of requirement",
+      "expected_verbatim": "Five daily shortfalls of 1 min; weekly total 5, not 3",
+      "expected_fields": {
+        "daily_shortfall_minutes": [1, 1, 1, 1, 1],
+        "weekly_total_minutes": 5,
+        "incorrect_result_if_rounded_once_at_week_end": 3
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "R-16.5: weekly totals are the sum of ROUNDED daily minutes. Requires per-day qualifying SECONDS, which no table stores."
+      }
+    },
+    {
+      "id": "GV-13",
+      "scenario": "Partial leave (§14.2)",
+      "inputs_verbatim": "gap 30; approved leave overlap 15",
+      "expected_verbatim": "excluded 15; attributable 15",
+      "expected_fields": {
+        "gap_minutes": 30,
+        "leave_overlap_minutes": 15,
+        "exclusion_minutes": 15,
+        "attributable_minutes": 15
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "The specification notes the withdrawn draft covered only full coverage; partial coverage 'is the common one and was undefined (defect D-22)'. Leave is date-granular here."
+      }
+    },
+    {
+      "id": "GV-14",
+      "scenario": "Leave exceeds gap",
+      "inputs_verbatim": "gap 30; leave overlap 45",
+      "expected_verbatim": "excluded 30; attributable 0; never negative",
+      "expected_fields": {
+        "gap_minutes": 30,
+        "leave_overlap_minutes": 45,
+        "exclusion_minutes": 30,
+        "attributable_minutes": 0,
+        "never_negative": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": []
+      }
+    },
+    {
+      "id": "GV-15",
+      "scenario": "Leave with no gap",
+      "inputs_verbatim": "gap 0; leave overlap 60",
+      "expected_verbatim": "attributable 0; no credit created",
+      "expected_fields": {
+        "gap_minutes": 0,
+        "leave_overlap_minutes": 60,
+        "attributable_minutes": 0,
+        "credit_created": false
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§14.2 Example D: leave does not create credit."
+      }
+    },
+    {
+      "id": "GV-16",
+      "scenario": "Missing clock-out (§24.6)",
+      "inputs_verbatim": "No clock-out interval for the day",
+      "expected_verbatim": "state MISSING_CLOCK_OUT; no shortfall; no advisory; contributes 0",
+      "expected_fields": {
+        "state": "DEFERRED_PENDING_LEDGER",
+        "shortfall_computed": false,
+        "advisory_shown": false,
+        "contributes_to_accumulator_minutes": 0
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "P-3 is the distinctive blocker; P-1 is listed because this vector's own input is stated in terms of the interval set ('No clock-out interval for the day') and §19 step 7 tests hasNoClockOut against sealed intervals loaded at step 5. §7.2 calls inferring an end of day 'the single worst thing this control could do'. Two auto-close paths synthesize clock_out_time (local end-of-day; last heartbeat, or clock-in time if none was ever seen) and clock_sessions carries no column distinguishing them from a genuine departure."
+      }
+    },
+    {
+      "id": "GV-17",
+      "scenario": "Deferred exit (§24.7)",
+      "inputs_verbatim": "Day contains an unverified exit",
+      "expected_verbatim": "state DEFERRED_PENDING_LEDGER; contributes 0; visible to both parties; recomputes on resolution",
+      "expected_fields": {
+        "state": "DEFERRED_PENDING_LEDGER",
+        "contributes_to_accumulator_minutes": 0,
+        "visible_to_worker": true,
+        "visible_to_administrator": true,
+        "recomputes_on_resolution": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§24.7: the day is 'neither counted nor excused'. The canonical status Unverified Exit — Pending Review does not exist in this platform."
+      }
+    },
+    {
+      "id": "GV-18",
+      "scenario": "Requirement unresolved (§24.3)",
+      "inputs_verbatim": "No requirement at any of the six ranks",
+      "expected_verbatim": "state REQUIREMENT_UNRESOLVED; admin alert; nothing shown to the Worker",
+      "expected_fields": {
+        "state": "REQUIREMENT_UNRESOLVED",
+        "administrator_alert": true,
+        "shown_to_worker": false,
+        "shortfall_computed": false
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "REQUIREMENT_UNRESOLVED is REACHABLE. app.requirement_resolution returns it when configuration exists and no rank answers usably, and EVAL-DAY maps it to EcoDayState.REQUIREMENT_UNRESOLVED with shortfall_computed false. The rank-6 fail-open default in attendance_policy.resolve_expected_work_seconds is a separate legacy path the strict resolver deliberately does not fall through to. ALERT was a STALE citation, not a satisfied one: a requirement-unresolved day emits no threshold event, so ALERT's entry point could never fire for it — the same error owner ruling B3 corrected for GV-17. Ruling 2: B authorized a separate day-scoped primitive instead, and app.eco_day_alert raises the §24.3 alert from the authoritative EcoDayRecord to the designated PRIMARY ADMIN under the non-suppressible ECO_ADMIN_OPERATIONAL class."
+      }
+    },
+    {
+      "id": "GV-19",
+      "scenario": "Netting NONE (§15)",
+      "inputs_verbatim": "Mon +45; Tue −20; mode NONE",
+      "expected_verbatim": "Tuesday attributable 20",
+      "expected_fields": {
+        "netting_mode": "NONE",
+        "tuesday_attributable_minutes": 20
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "MODEL-NETTING closed under owner rulings D-6.3/D-6.4/D-6.8 through D-6.12. Netting is consumed at §18 step 10, before gross and before exclusions; NONE creates and consumes nothing, which is what makes this vector diverge from GV-20."
+      }
+    },
+    {
+      "id": "GV-20",
+      "scenario": "Netting WEEKLY_BANK",
+      "inputs_verbatim": "Same, mode WEEKLY_BANK, cap 60",
+      "expected_verbatim": "Tuesday attributable 0; bank consumed 20",
+      "expected_fields": {
+        "netting_mode": "WEEKLY_BANK",
+        "bank_cap_minutes": 60,
+        "tuesday_attributable_minutes": 0,
+        "bank_consumed_minutes": 20
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "MODEL-NETTING closed under owner rulings D-6.3/D-6.4/D-6.8 through D-6.12. The bank is a FOLD over day records (§15.1 / INV-3) — no counter, balance or period row exists — and the per-day and per-period caps come from the governing PolicyVersion. PERIOD_BANK remains refused: §15 suspends weekly evaluation under it and no reference period is recorded anywhere."
+      }
+    },
+    {
+      "id": "GV-21",
+      "scenario": "Policy versioning (§17)",
+      "inputs_verbatim": "Evaluate 2026-08-28 after v4 (525) supersedes v3 (510)",
+      "expected_verbatim": "required 510, in perpetuity",
+      "expected_fields": {
+        "evaluated_date": "2026-08-28",
+        "required_minutes": 510,
+        "stable_in_perpetuity": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "app_settings is a mutable key/value store with updated_at only — no version, no effective_from, no history — so a historical day re-resolves against current policy."
+      }
+    },
+    {
+      "id": "GV-22",
+      "scenario": "Retroactive crossing (§21.5)",
+      "inputs_verbatim": "Correction in week k+2 pushes week k to 33",
+      "expected_verbatim": "Event with is_retroactive = true; copy names the workweek and cause",
+      "expected_fields": {
+        "weekly_total_minutes": 33,
+        "is_retroactive": true,
+        "notification_names_workweek": true,
+        "notification_names_cause": true
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§21.5: the notification MUST NOT read as though the condition arose today."
+      }
+    },
+    {
+      "id": "GV-23",
+      "scenario": "Beyond retroactive horizon",
+      "inputs_verbatim": "Same, 120 days later, horizon 90",
+      "expected_verbatim": "Record corrected; no notification",
+      "expected_fields": {
+        "days_elapsed": 120,
+        "retroactive_horizon_days": 90,
+        "record_corrected": true,
+        "notification_sent": false
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§21.5: a threshold notification about a week five months ago 'has no legitimate operational purpose and reads as harassment'. MODEL-HORIZON closed under owner rulings D-7.1 and D-7.2: elapsed days are LOCAL calendar dates in the workweek's frozen timezone, the boundary is strictly greater-than, and the horizon comes from the PolicyVersion governing the corrected week. The decision is notification ELIGIBILITY only — the record is still corrected, which is why record_corrected and notification_sent are independent here."
+      }
+    },
+    {
+      "id": "GV-24",
+      "scenario": "Grace (§11)",
+      "inputs_verbatim": "attributable 3; grace_minutes 5",
+      "expected_verbatim": "attributable zeroed to 0; gross retained as 3 in the record",
+      "expected_fields": {
+        "grace_minutes": 5,
+        "attributable_minutes": 0,
+        "gross_shortfall_minutes_retained": 3
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "§11: grace_minutes exists so tenants do not get it implemented 'as a magic number in the threshold comparison, which is where it does the most damage'. The requirement model has no grace field."
+      }
+    },
+    {
+      "id": "GV-25",
+      "scenario": "Idempotent replay (§22)",
+      "inputs_verbatim": "Replay every event in the fixture set twice",
+      "expected_verbatim": "Identical final state; no duplicate events, records or notifications",
+      "expected_fields": {
+        "final_state_identical": true,
+        "duplicate_events": 0,
+        "duplicate_records": 0,
+        "duplicate_notifications": 0
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "Day-evaluation natural key is (tenant, worker, work_date, ledger_version, policy_version) — two of the five components do not exist."
+      }
+    },
+    {
+      "id": "GV-26",
+      "scenario": "Ledger integrity fault (§24.15)",
+      "inputs_verbatim": "Overlapping sealed intervals",
+      "expected_verbatim": "state LEDGER_INTEGRITY_FAULT; no evaluation; incident raised; no clamping",
+      "expected_fields": {
+        "state": "LEDGER_INTEGRITY_FAULT",
+        "evaluation_performed": false,
+        "platform_incident_raised": true,
+        "clamping_applied": false
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "The ECO path already refused: work_ledger.integrity detects OVERLAPPING_INTERVALS, the producer records LEDGER_INTEGRITY_FAULT, and EVAL-DAY raises EvaluationRefused rather than repairing, clamping or skipping it. The legacy union in employees.router._actual_break_seconds_for_sessions protects a dashboard number and is not on this path. §24.15 — 'Silently coping with corrupt evidence is how evidentiary systems lose their standing.' Both citations are now resolved. STATE-CONTRACT is satisfied by the existing D-8.1 contract: LedgerState is authoritative for ledger facts, LedgerState.LEDGER_INTEGRITY_FAULT already exists, and EcoDayState remains the seven-member evaluation vocabulary — no new evaluation state was introduced. ALERT was a STALE citation, not a satisfied one: §24.15 asks for a platform INCIDENT, which is operational evidence that a Tenant ledger holds a defect — it has no audience, no recipient, no channel and no delivery, it emits no threshold event and it is not routed through app/alert. Owner ruling D-9.1 authorized a dedicated primitive instead, and app.eco_ledger_incident raises the incident from the authoritative ledger fault identity, exactly once per fault version, append-only under R5."
+      }
+    },
+    {
+      "id": "GV-27",
+      "scenario": "Classification change mid-week (§24.12)",
+      "inputs_verbatim": "Part-Time Mon–Tue, Full-Time Wed–Fri",
+      "expected_verbatim": "Per-day requirements 240/240/525/525/525; single weekly threshold",
+      "expected_fields": {
+        "per_day_required_minutes": [240, 240, 525, 525, 525],
+        "weekly_threshold_count": 1
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "The REQUIREMENT half of this vector is the closest to satisfiable today: the Schedule Resolver already resolves per Worker per date and carries a provenance 'sources' map, so per-day 240/240/525/525/525 is representable. The vector still cannot execute, because a day record needs qualifying minutes to sit beside the requirement."
+      }
+    },
+    {
+      "id": "GV-28",
+      "scenario": "Non-working day (§24.2)",
+      "inputs_verbatim": "Rest day with an accidental clock-in",
+      "expected_verbatim": "required 0; gross 0; no advisory; day record written as NOT_A_WORKING_DAY",
+      "expected_fields": {
+        "required_minutes": 0,
+        "gross_shortfall_minutes": 0,
+        "advisory_shown": false,
+        "state": "NOT_A_WORKING_DAY"
+      },
+      "harness": {
+        "execution": "executable",
+        "blocking_dependencies": [],
+        "note": "EffectiveSchedule.is_working_day already answers the working-day question; the day record the specification requires 'so that the week fold is complete and explainable' is now written — a dedicated classifier owns the determination, the producer freezes its verdict into the ledger state, and EVAL-DAY zeroes the day from that frozen context."
+      }
+    }
+  ]
+}

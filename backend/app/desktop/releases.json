@@ -1,0 +1,33 @@
+{
+  "_comment": "Release notes catalogue for the Temveris desktop tracker. Keyed by semver. Edit this file (no code change) when shipping a new build; the /desktop/latest endpoint reads it on every request (cached 60s). If a published version is missing from this file the endpoint falls back to default_notes so the banner never shows an empty bullet list.",
+  "default_notes": [
+    "Stability and performance improvements"
+  ],
+  "versions": {
+    "1.0.13": {
+      "released_at": "2026-06-13T00:00:00Z",
+      "notes": [
+        "Screenshot interval now follows your organization's settings (no longer stuck at 30s)",
+        "Fixed screenshots that failed to open in the dashboard and timelapse",
+        "Reliable in-app update detection and install",
+        "Stability and performance improvements"
+      ]
+    },
+    "1.0.11": {
+      "released_at": "2026-06-01T06:15:48Z",
+      "notes": [
+        "Login stability improvements",
+        "Session persistence fixes",
+        "Bug fixes",
+        "Performance improvements"
+      ]
+    },
+    "1.0.8": {
+      "released_at": "2026-05-25T12:53:12Z",
+      "notes": [
+        "Initial auto-update support",
+        "Tray menu improvements"
+      ]
+    }
+  }
+}

@@ -1,0 +1,360 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =====================================================================
+   <style> elements MUST never render as visible text.
+   ---------------------------------------------------------------------
+   Browser default for <style> is `display: none`, but two things in this
+   stack can override it and surface the raw CSS as a giant block of text
+   on the page:
+     • React 19's in-place rendering of `<style>{cssString}</style>` —
+       under some load orders the children leak out before the element's
+       default display kicks in (visible during hydration, also seen in
+       Electron's webContents when the document is reloaded into an
+       already-active renderer).
+     • Runtime <style> injection by goober / react-hot-toast — if the
+       host page or an Electron load hook briefly shows `<head>` content
+       (e.g. during the moment the new page replaces the previous one),
+       the freshly-appended <style> nodes flash as visible body text.
+   Pinning display:none with !important at the layer-0 base solves both
+   without touching the 30 components that use the inline-<style> pattern.
+   ===================================================================== */
+style { display: none !important; }
+
+/* =====================================================================
+   Temveris — Global theme tokens
+   ===================================================================== */
+:root {
+  --zt-brand: #11496a;
+  --zt-brand-dark: #0e3b57;
+  --zt-brand-soft: #e7f0f6;
+  --zt-brand-mid: #a6c7dc;
+  --zt-accent: #44b97b;
+  --zt-accent-dark: #2f8f5c;
+  --zt-accent-soft: #e8f7ee;
+  --zt-brand-rgb: 17, 73, 106;
+  --zt-accent-rgb: 68, 185, 123;
+}
+
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ---------------- DARK-MODE NATIVE CONTROL FIXES ----------------
+   `color-scheme: dark` is set on <html> by ThemeProvider, but it only
+   inherits into controls that DON'T set their own background. Inputs
+   with an explicit `background` (e.g. the Invite Worker modal's date
+   fields) are treated by Chrome as customised, so the calendar-picker
+   indicator falls back to the default dark glyph and vanishes on a dark
+   field. Force `color-scheme: dark` on the input itself so the glyph
+   renders light regardless. Do NOT invert it — inverting flips the
+   already-white icon back to black (reported in /admin?tab=reports).  */
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="datetime-local"],
+[data-theme="dark"] input[type="month"],
+[data-theme="dark"] input[type="week"],
+[data-theme="dark"] input[type="time"] {
+  color-scheme: dark;
+}
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="week"]::-webkit-calendar-picker-indicator,
+[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
+  cursor: pointer;
+}
+[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator:hover,
+[data-theme="dark"] input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover,
+[data-theme="dark"] input[type="month"]::-webkit-calendar-picker-indicator:hover,
+[data-theme="dark"] input[type="week"]::-webkit-calendar-picker-indicator:hover,
+[data-theme="dark"] input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+::selection {
+  background: rgba(var(--zt-brand-rgb), 0.18);
+  color: var(--zt-brand-dark);
+}
+
+/* ── Main project animations ── */
+@keyframes pageEnter {
+  from { opacity: 0; transform: scale(0.97) translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes staggerFade {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.page-enter-active { animation: pageEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* Cross-fade for the content swapped inside the persistent auth card (see
+   components/auth/AuthShell.jsx). Deliberately gentler than pageEnter: the
+   card, logo and tabs stay put, so a big scale/slide on the content alone
+   would read as a glitch rather than a transition. */
+@keyframes authSwapIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+.auth-swap { animation: authSwapIn 0.28s cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-swap { animation: none; }
+}
+
+.logo-glow {
+  filter: drop-shadow(0 10px 25px rgba(var(--zt-accent-rgb), 0.28));
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.logo-glow:hover {
+  transform: scale(1.06) translateY(-2px);
+  filter: drop-shadow(0 20px 40px rgba(var(--zt-accent-rgb), 0.35))
+    drop-shadow(0 8px 20px rgba(var(--zt-brand-rgb), 0.25));
+}
+
+.input-glow { transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1); }
+.input-glow:hover { transform: translateY(-1px); border-color: rgba(var(--zt-brand-rgb), 0.45); }
+.input-glow:focus {
+  border-color: var(--zt-brand);
+  box-shadow: 0 0 0 2px rgba(var(--zt-brand-rgb), 0.25), 0 10px 20px rgba(var(--zt-brand-rgb), 0.15);
+}
+input::placeholder       { transition: all 0.3s ease; }
+input:focus::placeholder { opacity: 0.5; transform: translateX(6px); }
+
+.eye-btn { transition: all 0.25s ease; }
+.eye-btn:hover { transform: scale(1.2); color: var(--zt-brand); }
+
+.btn-hover { position: relative; overflow: hidden; transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.btn-hover:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 18px 30px rgba(var(--zt-brand-rgb), 0.28), 0 6px 14px rgba(var(--zt-accent-rgb), 0.18);
+}
+.btn-hover:active { transform: scale(0.96); }
+.btn-hover::after { content: ""; position: absolute; inset: 0; background: white; opacity: 0; transition: opacity 0.3s ease; }
+.btn-hover:hover::after { opacity: 0.12; }
+
+.card-hover { transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1); }
+.card-hover:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 30px 60px rgba(var(--zt-brand-rgb), 0.14), 0 10px 20px rgba(var(--zt-accent-rgb), 0.08);
+}
+
+.link-hover { position: relative; display: inline-block; transition: color 0.25s ease; }
+.link-hover::after { content: ""; position: absolute; left: 0; bottom: -3px; height: 2px; width: 0%; background: linear-gradient(to right, var(--zt-brand), var(--zt-accent)); transition: width 0.3s ease; }
+.link-hover:hover { color: var(--zt-brand); }
+.link-hover:hover::after { width: 100%; }
+
+.stagger > * { animation: staggerFade 0.5s ease forwards; }
+.stagger > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger > *:nth-child(5) { animation-delay: 0.25s; }
+
+.loader { border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid white; border-radius: 50%; width: 18px; height: 18px; animation: spin 0.6s linear infinite; }
+
+.zt-brand-gradient { background: linear-gradient(135deg, var(--zt-brand) 0%, var(--zt-accent) 100%); }
+.zt-brand-gradient-text { background: linear-gradient(135deg, var(--zt-brand) 0%, var(--zt-accent) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* =====================================================================
+   DOWNLOAD APP BUTTON  (components/DownloadAppButton.jsx)
+   ---------------------------------------------------------------------
+   The header CTA on both dashboards. A signed-in user never passes the
+   "Account created" screen that offers the installer, so this button has
+   to advertise itself to someone who isn't looking for it. It therefore
+   carries its full treatment AT REST, not on hover: a blue→green
+   gradient fill that drifts, a light sweep that crosses every few
+   seconds, a halo that pings outward, and an arrow that dips. Hover only
+   intensifies what is already running.
+
+   Idle timings are slow and the sweep is mostly dead air (one ~1.3s pass
+   per 5s). These headers stay on screen all day, and continuous fast
+   motion gets tuned out or becomes irritating.
+
+   Lives here rather than in either dashboard's inline <style> block
+   because both render it and the keyframes must not be duplicated. The
+   only per-page value is the focus-ring gap colour, passed in as
+   --zt-dl-gap so the ring reads against a dark header too.
+   ===================================================================== */
+@keyframes ztDlDrift { to { background-position: 200% 0; } }
+@keyframes ztDlSheen {
+  0%        { transform: translateX(-170%) skewX(-18deg); }
+  26%, 100% { transform: translateX(320%)  skewX(-18deg); }
+}
+/* Dips once near the end of each cycle rather than continuously — a
+   permanently bouncing arrow is a distraction, one that moves now and
+   then is an invitation. Hover shortens the cycle, which turns the same
+   keyframes into a steady bounce. */
+@keyframes ztDlDip {
+  0%, 78%, 100% { transform: translateY(0); }
+  88%           { transform: translateY(3px); }
+}
+/* Expanding ring, not a growing shadow: the spread goes 0 → 7px while
+   its alpha fades to nothing, so the pill pings outward without ever
+   shifting layout. */
+@keyframes ztDlHalo {
+  0%   { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 3px 10px -3px rgba(var(--zt-brand-rgb), .5), 0 0 0 0 rgba(var(--zt-accent-rgb), .5); }
+  70%  { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 4px 14px -3px rgba(var(--zt-brand-rgb), .5), 0 0 0 7px rgba(var(--zt-accent-rgb), 0); }
+  100% { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 3px 10px -3px rgba(var(--zt-brand-rgb), .5), 0 0 0 0 rgba(var(--zt-accent-rgb), 0); }
+}
+.zt-dl-btn {
+  --zt-dl-gap: #fff;
+  position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 8px;
+  flex-shrink: 0; white-space: nowrap;
+  padding: 9px 20px; border-radius: 999px; border: none;
+  /* 200%-wide gradient scrolled by exactly one tile; it starts and ends
+     on the brand blue so the loop has no visible seam. */
+  background: linear-gradient(90deg,
+    var(--zt-brand) 0%, var(--zt-accent-dark) 28%, var(--zt-accent) 50%,
+    var(--zt-accent-dark) 72%, var(--zt-brand) 100%);
+  background-size: 200% 100%;
+  color: #fff;
+  font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: .1px;
+  cursor: pointer;
+  animation: ztDlDrift 9s linear infinite, ztDlHalo 3.2s ease-out infinite;
+  transition: transform .2s cubic-bezier(.34,1.56,.64,1), filter .2s ease;
+}
+/* Compact variant for the employee dashboard, whose header runs smaller
+   controls (7px/14px, 12px text, 8px radius). It keeps the full gradient
+   and motion but takes the shape of the buttons beside it, so it reads as
+   part of that cluster rather than a pill dropped into it. */
+.zt-dl-btn--sm {
+  padding: 7px 14px; gap: 6px;
+  font-size: 12px; border-radius: 8px;
+}
+.zt-dl-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.07) saturate(1.06);
+  /* The halo animation is dropped on hover — an animated box-shadow
+     overrides a plain declaration, so this deeper lift shadow would never
+     paint while it ran. Drift and sweep speed up instead, which carries
+     the same "alive" signal. */
+  animation: ztDlDrift 3.5s linear infinite;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.3),
+              0 10px 22px -8px var(--zt-brand), 0 3px 8px rgba(var(--zt-brand-rgb), .25);
+}
+.zt-dl-btn::after {
+  content: ""; position: absolute; top: -25%; bottom: -25%; left: 0; width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+  transform: translateX(-170%) skewX(-18deg);
+  pointer-events: none;
+  animation: ztDlSheen 5s ease-out infinite;
+}
+.zt-dl-btn:hover::after { animation-duration: 1.6s; }
+.zt-dl-ic { display: inline-flex; animation: ztDlDip 5s ease-in-out infinite; }
+.zt-dl-btn:hover .zt-dl-ic { animation-duration: 1.3s; }
+.zt-dl-btn:active { transform: translateY(0) scale(.97); }
+.zt-dl-btn:focus-visible {
+  outline: none;
+  /* Halo dropped here for the same reason as on hover — left running, its
+     animated box-shadow would paint over the focus ring and leave keyboard
+     users with no visible focus at all. */
+  animation: ztDlDrift 3.5s linear infinite;
+  box-shadow: 0 0 0 3px var(--zt-dl-gap), 0 0 0 5px var(--zt-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .zt-dl-btn, .zt-dl-btn:hover, .zt-dl-btn:focus-visible,
+  .zt-dl-btn::after, .zt-dl-ic, .zt-dl-btn:hover .zt-dl-ic { animation: none; }
+  .zt-dl-btn::after { opacity: 0; }
+  .zt-dl-btn { box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 3px 10px -3px rgba(var(--zt-brand-rgb), .5); }
+  .zt-dl-btn:hover { transform: none; }
+}
+/* Flat green variant for the admin header (Live Workforce Overview design):
+   same shape and focus ring, no drifting gradient, halo or sheen. Declared
+   after the base rules so it wins at equal specificity. */
+.zt-dl-btn--solid,
+.zt-dl-btn--solid:hover,
+.zt-dl-btn--solid:focus-visible { animation: none; background: #1E9E57; background-size: auto; }
+.zt-dl-btn--solid { border-radius: 10px; padding: 9px 18px; box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+/* No lift on hover: a moving button flickers when the pointer sits on its edge. */
+.zt-dl-btn--solid:hover { background: #188A4B; transform: none; box-shadow: 0 6px 16px -6px rgba(30,158,87,.65); }
+.zt-dl-btn--solid:active { transform: scale(.98); }
+.zt-dl-btn--solid:focus-visible { box-shadow: 0 0 0 3px var(--zt-dl-gap), 0 0 0 5px #1E9E57; }
+.zt-dl-btn--solid::after { display: none; }
+.zt-dl-btn--solid .zt-dl-ic { animation: none; }
+
+/* ---------------- SCROLLBARS (all screens) ----------------
+   Logo-themed wide scrollbars. Brand-blue thumb at rest; on hover the
+   thumb fills with the logo green (#44B97B). The !important flags here
+   are deliberate — Dashboard / AdminDashboard each inject their own
+   local <style> block at runtime, and without !important those local
+   rules silently shrink scrollbars back to ~5 px. */
+
+::-webkit-scrollbar {
+  width: 14px !important;
+  height: 14px !important;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(var(--zt-brand-rgb), 0.06) !important;
+  border-radius: 8px !important;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--zt-brand) 0%, var(--zt-brand-dark) 100%) !important;
+  border-radius: 8px !important;
+  border: 3px solid transparent !important;
+  background-clip: padding-box !important;
+  transition: background 0.2s ease !important;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--zt-accent) 0%, var(--zt-accent-dark) 100%) !important;
+  background-clip: padding-box !important;
+  border: 3px solid transparent !important;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent !important;
+}
+
+* {
+  scrollbar-width: auto;
+  scrollbar-color: var(--zt-brand) rgba(var(--zt-brand-rgb), 0.06);
+}
+
+
+/* =====================================================================
+   ACCOUNT → SETTINGS: visible side-effects for preferences saved to
+   /worker/settings. Dashboard.jsx writes data-attributes on <html> so
+   we can target them from any component without prop-drilling. Each
+   preference toggles a concrete visual change — otherwise the Settings
+   page would just be saving JSON the worker never sees take effect.
+   ===================================================================== */
+
+/* High Contrast — WCAG 2.2 AA. Bumps borders, text weight, and focus
+   rings so low-vision workers can find UI structure without colour. */
+html[data-contrast="high"] body {
+  --zt-contrast-border: rgba(0, 0, 0, 0.85);
+}
+html[data-contrast="high"] *:focus-visible {
+  outline: 3px solid var(--zt-brand) !important;
+  outline-offset: 2px !important;
+}
+html[data-contrast="high"] button,
+html[data-contrast="high"] input,
+html[data-contrast="high"] select,
+html[data-contrast="high"] textarea,
+html[data-contrast="high"] [role="button"] {
+  border-width: 2px !important;
+  font-weight: 600 !important;
+}
+
+/* Presentation Mode — blur monetary / sensitive figures during screen
+   shares. Components opt in via class="zt-sensitive"; the blur lifts
+   on hover so the worker can still read their own data. */
+html[data-presentation-mode="on"] .zt-sensitive {
+  filter: blur(6px);
+  transition: filter 0.15s ease;
+}
+html[data-presentation-mode="on"] .zt-sensitive:hover,
+html[data-presentation-mode="on"] .zt-sensitive:focus-within {
+  filter: none;
+}

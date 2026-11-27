@@ -1,0 +1,554 @@
+[
+ {
+  "section": "auth",
+  "name": "login A_ADMIN",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "auth",
+  "name": "login A_EMP",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "auth",
+  "name": "login B_ADMIN",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "auth",
+  "name": "login B_EMP",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "emp",
+  "name": "GET /employees/me",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "emp",
+  "name": "clock-in",
+  "pass": true,
+  "evidence": "HTTP 200 {\"success\":true,\"user_id\":2,\"clock_in_time\":\"2026-08-11T12:37:02.508330Z\"}"
+ },
+ {
+  "section": "emp",
+  "name": "day-summary reflects the session",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "emp",
+  "name": "break start",
+  "pass": true,
+  "evidence": "HTTP 200 {\"success\":true,\"allowed\":true,\"break_id\":1,\"break_start\":\"2026-08-11T12:37:02.6"
+ },
+ {
+  "section": "emp",
+  "name": "break end (resume)",
+  "pass": true,
+  "evidence": "HTTP 200 {\"success\":true,\"break_id\":1,\"break_seconds\":0,\"duration\":\"0m 0s\",\"reason\":\"E2E "
+ },
+ {
+  "section": "emp",
+  "name": "tracker policy feed = org A's values",
+  "pass": true,
+  "evidence": "grace=15 interval=1800 blur=false"
+ },
+ {
+  "section": "emp",
+  "name": "org B receives DIFFERENT policy",
+  "pass": true,
+  "evidence": "grace=30 interval=300 blur=true"
+ },
+ {
+  "section": "emp",
+  "name": "clock-out",
+  "pass": true,
+  "evidence": "HTTP 200 {\"success\":false,\"code\":\"EARLY_CLOCK_OUT_REASON_REQUIRED\",\"attendance_id\":1,\"worked_second"
+ },
+ {
+  "section": "admin",
+  "name": "employees list",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "team status",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "attendance report",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "employee summary",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "overtime report",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "screenshots",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "leave types",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "leave requests",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "leave balances",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "payroll configs",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "payroll summary",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "settings (scoped)",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "org settings",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "holidays",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "time adjustments",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "risk users",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "analytics",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "admin",
+  "name": "create time adjustment",
+  "pass": true,
+  "evidence": "HTTP 200 {\"id\":1,\"user_id\":2,\"date\":\"2026-08-11\",\"seconds_added\":1800,\"duration\":\"30m\",\"reason\":\"E2E local validation\","
+ },
+ {
+  "section": "admin",
+  "name": "time adjustment persisted",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B employee by id",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B time adjustments",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B profile projection",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B payroll config",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B leave balances",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B leave eligibility",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B leave requests filter",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B screenshots filter",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B attendance detail",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B intelligence risk",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B scoped settings",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B list employees list",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B list daily attendance",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B list leave requests",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B list holidays",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A employee by id",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A time adjustments",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A profile projection",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A payroll config",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A leave balances",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A leave eligibility",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A leave requests filter",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A screenshots filter",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A attendance detail",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A intelligence risk",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A scoped settings",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A list employees list",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A list daily attendance",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A list leave requests",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "B->A list holidays",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B write rejected: rename employee",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B write rejected: time adjustment",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B write rejected: default clock-in",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "A->B write rejected: employee-scope setting",
+  "pass": true,
+  "evidence": "HTTP 404"
+ },
+ {
+  "section": "xtenant",
+  "name": "org B employee unchanged after write attempts",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "xtenant",
+  "name": "org B grace unchanged after write attempts",
+  "pass": true,
+  "evidence": "grace=30"
+ },
+ {
+  "section": "settings",
+  "name": "baseline = org default (15)",
+  "pass": true,
+  "evidence": "grace=15"
+ },
+ {
+  "section": "settings",
+  "name": "team-scope write accepted",
+  "pass": true,
+  "evidence": "HTTP 200 {\"success\":true,\"updated\":[\"schedule.grace_minutes\"]}"
+ },
+ {
+  "section": "settings",
+  "name": "employee inherits TEAM override (15 -> 45)",
+  "pass": true,
+  "evidence": "grace=45"
+ },
+ {
+  "section": "settings",
+  "name": "EMPLOYEE override beats team (45 -> 5)",
+  "pass": true,
+  "evidence": "grace=5"
+ },
+ {
+  "section": "settings",
+  "name": "org B unaffected by every org-A change",
+  "pass": true,
+  "evidence": "grace=30"
+ },
+ {
+  "section": "settings",
+  "name": "org-only key REJECTED at team scope",
+  "pass": true,
+  "evidence": "HTTP 400 {\"detail\":\"These settings are organization-wide only and cannot be overridden per team: work_hours_t"
+ },
+ {
+  "section": "leave",
+  "name": "org A catalogue is its own",
+  "pass": true,
+  "evidence": [
+   "Adoption Leave",
+   "Annual Leave",
+   "Bereavement Leave",
+   "Casual Leave",
+   "Child Care Leave",
+   "Company Leave",
+   "Compensatory Leave",
+   "Emergency Leave",
+   "Half Day Leave",
+   "Maternity Leave",
+   "Medical Escort Leave",
+   "Parent Care Leave",
+   "Paternity Leave",
+   "Sick Leave",
+   "Unpaid Leave"
+  ]
+ },
+ {
+  "section": "leave",
+  "name": "org B catalogue is its own",
+  "pass": true,
+  "evidence": [
+   "LWP",
+   "Medical Leave",
+   "PTO"
+  ]
+ },
+ {
+  "section": "leave",
+  "name": "org B does NOT see shipped types",
+  "pass": true,
+  "evidence": [
+   "LWP",
+   "Medical Leave",
+   "PTO"
+  ]
+ },
+ {
+  "section": "leave",
+  "name": "org B unpaid type flagged is_paid=False",
+  "pass": true,
+  "evidence": "LWP.is_paid=False"
+ },
+ {
+  "section": "leave",
+  "name": "org B unpaid type is waiting-exempt",
+  "pass": true,
+  "evidence": "LWP.waiting_exempt=True"
+ },
+ {
+  "section": "leave",
+  "name": "org B pool master is PTO (not Annual Leave)",
+  "pass": true,
+  "evidence": "PTO paid=True"
+ },
+ {
+  "section": "leave",
+  "name": "org A balance resolves",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "leave",
+  "name": "org B balance uses ITS types only",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "leave",
+  "name": "org A evidence gate BLOCKS sick w/o document",
+  "pass": true,
+  "evidence": "HTTP 200 {\"errors\":[\"Supporting document is mandatory for Sick Leave\"],\"flags\":[\"HR_REVIEW\",\"PATTERN_DETECTED\",\"EVIDENC"
+ },
+ {
+  "section": "leave",
+  "name": "org B (gate off) does NOT block",
+  "pass": true,
+  "evidence": "HTTP 200 {\"errors\":[],\"flags\":[\"HR_REVIEW\",\"PATTERN_DETECTED\",\"DOC_REQUIRED\"],\"auto_lwp\":false}"
+ },
+ {
+  "section": "tz",
+  "name": "org A timezone",
+  "pass": true,
+  "evidence": "Asia/Kolkata"
+ },
+ {
+  "section": "tz",
+  "name": "org B timezone",
+  "pass": true,
+  "evidence": "America/New_York"
+ },
+ {
+  "section": "payroll",
+  "name": "org A my-config",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "payroll",
+  "name": "org B my-config",
+  "pass": true,
+  "evidence": "HTTP 200"
+ },
+ {
+  "section": "payroll",
+  "name": "currencies differ per tenant",
+  "pass": true,
+  "evidence": "A=INR B=USD"
+ }
+]

@@ -1,0 +1,20 @@
+# Compose v2 — no top-level `version:` (deprecated since 2023).
+services:
+  # ── Main app (Python BE + React FE built into one image) ───────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile           # root Dockerfile (multi-stage build)
+    container_name: temveris
+    # PORT is honoured by gunicorn. Override on the host if 8080 is taken:
+    #   APP_PORT=8090 docker compose up
+    ports:
+      - "${APP_PORT:-8080}:${PORT:-8080}"
+    environment:
+      PORT: "${PORT:-8080}"
+    env_file:
+      - ./backend/.env                 # Python BE env
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4

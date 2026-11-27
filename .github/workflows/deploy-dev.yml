@@ -1,0 +1,111 @@
+# TEMPLATE: set repo secrets and replace placeholders before enabling Actions.
+name: Deploy to DEV (GCP Cloud Run)
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: YOUR_GCP_DEV_PROJECT_ID
+  REGION: europe-west1
+  MAIN_SERVICE: YOUR_DEV_SERVICE_NAME
+  MAIN_IMAGE: europe-west1-docker.pkg.dev/YOUR_GCP_DEV_PROJECT_ID/YOUR_ARTIFACT_REPO/YOUR_IMAGE_NAME
+
+jobs:
+  deploy-main-dev:
+    name: Build & Deploy Main App DEV
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Auth with GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_DEV }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2.1.4
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker europe-west1-docker.pkg.dev --quiet
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build Frontend
+        working-directory: frontend
+        env:
+          VITE_STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Build & Push Main App
+        run: |
+          docker build \
+            --file Dockerfile.slim \
+            --tag ${{ env.MAIN_IMAGE }}:${{ github.sha }} \
+            .
+          docker push ${{ env.MAIN_IMAGE }}:${{ github.sha }}
+
+      # `steps.deploy-main.outputs.url` cannot be referenced from inside the
+      # very step that produces it (GitHub Actions resolves it to "" at the
+      # time `with:` is evaluated). We use dedicated DEV secrets below with
+      # a fallback to the standard ones so a single-env setup still works.
+      - name: Deploy to Cloud Run
+        id: deploy-main
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ env.MAIN_SERVICE }}
+          region: ${{ env.REGION }}
+          image: ${{ env.MAIN_IMAGE }}:${{ github.sha }}
+          flags: >-
+            --platform=managed
+            --allow-unauthenticated
+            --port=8080
+            --memory=1Gi
+            --cpu=1
+            --min-instances=0
+            --max-instances=2
+          env_vars: |
+            DATABASE_URL=${{ secrets.DEV_DATABASE_URL }}
+            SECRET_KEY=${{ secrets.SECRET_KEY }}
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}
+            SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+            SUPABASE_SERVICE_ROLE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+            SUPABASE_SCREENSHOTS_BUCKET=${{ secrets.SUPABASE_SCREENSHOTS_BUCKET }}
+            STORAGE_BACKEND=supabase
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+            SMTP_HOST=${{ secrets.SMTP_HOST }}
+            SMTP_PORT=${{ secrets.SMTP_PORT }}
+            SMTP_USER=${{ secrets.SMTP_USER }}
+            SMTP_PASS=${{ secrets.SMTP_PASS }}
+            FROM_EMAIL=${{ secrets.FROM_EMAIL }}
+            ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}
+            HR_EMAIL=${{ secrets.HR_EMAIL }}
+            FRONTEND_URL=https://YOUR_DEV_SERVICE_URL
+            BACKEND_URL=https://YOUR_DEV_SERVICE_URL
+            GOOGLE_OAUTH_CLIENT_ID=${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}
+            GOOGLE_OAUTH_CLIENT_SECRET=${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}
+            SUPER_ADMIN_EMAILS=${{ secrets.SUPER_ADMIN_EMAILS }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}
+            STRIPE_PRICE_VERIFIED_MONTHLY=${{ secrets.STRIPE_PRICE_VERIFIED_MONTHLY }}
+            STRIPE_PRICE_VERIFIED_ANNUAL=${{ secrets.STRIPE_PRICE_VERIFIED_ANNUAL }}
+            STRIPE_PRICE_GOVERNED_MONTHLY=${{ secrets.STRIPE_PRICE_GOVERNED_MONTHLY }}
+            STRIPE_PRICE_GOVERNED_ANNUAL=${{ secrets.STRIPE_PRICE_GOVERNED_ANNUAL }}
+            STRIPE_PRICE_SOVEREIGN_MONTHLY=${{ secrets.STRIPE_PRICE_SOVEREIGN_MONTHLY }}
+            STRIPE_PRICE_SOVEREIGN_ANNUAL=${{ secrets.STRIPE_PRICE_SOVEREIGN_ANNUAL }}
+
+      - name: Show deployed URL
+        run: echo "DEV app deployed to ${{ steps.deploy-main.outputs.url }}"

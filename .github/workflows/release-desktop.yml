@@ -1,0 +1,101 @@
+# TEMPLATE: set repo secrets and replace placeholders before enabling Actions.
+name: Release Desktop Tracker
+
+# Builds the Electron desktop tracker and publishes the installer + latest.yml
+# to the public Supabase bucket (YOUR_UPDATES_BUCKET) that electron-updater reads.
+#
+# This is the ONLY supported way to cut a desktop release. The deploy.yml /
+# deploy-dev.yml workflows build the BACKEND only and have zero effect on the
+# tracker — pushing to main does NOT release Electron. A release happens only
+# when you push a version tag (vX.Y.Z) or run this workflow manually.
+#
+# Required repo secrets (shared with deploy.yml):
+#   SUPABASE_URL                 e.g. https://YOUR_SUPABASE_PROJECT_REF.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY    service-role key (release-time only; never ships to clients)
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "Platform to build & publish"
+        type: choice
+        default: win
+        options: [win, mac, linux]
+
+permissions:
+  contents: read
+
+jobs:
+  release-win:
+    # Build on the native OS so NSIS (win) is produced correctly. Add separate
+    # macos-latest / ubuntu-latest jobs later if mac/linux channels go live.
+    if: ${{ github.event_name == 'push' || inputs.platform == 'win' }}
+    name: Build & publish Windows installer
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop-tracker
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop-tracker/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify tag matches package.json version
+        if: ${{ github.event_name == 'push' }}
+        shell: bash
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          TAG="${GITHUB_REF_NAME#v}"
+          echo "package.json=$PKG  tag=$TAG"
+          if [ "$PKG" != "$TAG" ]; then
+            echo "::error::package.json version ($PKG) does not match release tag ($TAG). Bump package.json (and package-lock.json) before tagging."
+            exit 1
+          fi
+
+      - name: Build Windows installer
+        # --publish never: electron-builder must NOT try to upload; our
+        # scripts/publish-update.js owns the Supabase upload (resumable/TUS).
+        run: npx electron-builder --win --publish never
+
+      - name: Verify dist/latest.yml matches package.json
+        shell: bash
+        run: |
+          PKG=$(node -p "require('./package.json').version")
+          YML=$(node -e "const fs=require('fs');const m=fs.readFileSync('dist/latest.yml','utf8').match(/^\s*version:\s*(\S+)/m);process.stdout.write(m?m[1]:'')")
+          echo "package.json=$PKG  dist/latest.yml=$YML"
+          if [ "$PKG" != "$YML" ]; then
+            echo "::error::dist/latest.yml ($YML) does not match package.json ($PKG). Build is inconsistent."
+            exit 1
+          fi
+          # Fail early if the installer is somehow absent (build produced no artifact).
+          test -f "dist/Temveris-Setup-${PKG}.exe" || { echo "::error::dist/Temveris-Setup-${PKG}.exe not found"; exit 1; }
+
+      - name: Publish to Supabase update channel
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: node scripts/publish-update.js win
+
+      - name: Upload build artifacts (audit trail)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: temveris-win-${{ github.ref_name }}
+          path: |
+            desktop-tracker/dist/Temveris-Setup-*.exe
+            desktop-tracker/dist/Temveris-Setup-*.exe.blockmap
+            desktop-tracker/dist/latest.yml
+          if-no-files-found: warn
+          retention-days: 30

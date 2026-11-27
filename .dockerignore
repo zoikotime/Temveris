@@ -1,0 +1,10 @@
+# Docker ignores match from the build-context root, so **/ is needed for nested paths.
+.git
+**/.env
+**/.env.*
+**/node_modules
+**/tracker-data
+**/*.db
+**/dist_new
+.local-e2e
+memory

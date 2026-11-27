@@ -1,0 +1,36 @@
+# ─────────────────────────────────────────────
+# Optimized Production Dockerfile (No Node.js build inside container)
+# Expects CI (GitHub Actions etc.) to have built `frontend/dist/`
+# BEFORE this image is built. Use this when build minutes / image size
+# matter; use the main Dockerfile when you want a fully self-contained
+# build that runs `npm` inside the container.
+# ─────────────────────────────────────────────
+# Pin to 3.12 to match the local dev environment AND the main Dockerfile.
+# 3.11 hits a SyntaxError on PEP 701 backslash-in-f-string (used in
+# app/email_service.py), which silently breaks /auth/forgot-password
+# because the email module fails to import. Drifting between Dockerfile
+# and Dockerfile.slim creates "works in prod, broken in dev" bugs since
+# dev deploy uses the .slim variant.
+FROM python:3.12-slim
+WORKDIR /app
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+COPY backend/requirements.txt ./
+RUN pip install -r requirements.txt
+
+COPY backend/ ./
+
+# Pre-built frontend from CI. Workflow MUST place artefacts in
+# frontend/dist/ before `docker build .` runs.
+COPY frontend/dist ./static
+
+EXPOSE 8080
+
+# Honour $PORT for Cloud Run / Heroku / Fly. Migrations are intentionally
+# NOT in this CMD — run them once via `alembic upgrade head` from a CI
+# step or `gcloud run jobs` so app boots aren't blocked behind DB work.
+CMD ["sh", "-c", "exec gunicorn -k uvicorn.workers.UvicornWorker main:app --bind 0.0.0.0:${PORT:-8080} --workers 2 --timeout 120 --graceful-timeout 30 --keep-alive 5"]
